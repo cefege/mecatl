@@ -564,6 +564,23 @@ func (c *conversation) addTool(id, name, args string) {
 	})
 }
 
+// reconcileUnresolvedTool updates the snapshot card for a replayed call. Recovery
+// scopes callers to unresolved calls from the adopted transcript, so reused IDs in
+// later turns still append normally.
+func (c *conversation) reconcileUnresolvedTool(id, name, args string) bool {
+	for i := len(c.blocks) - 1; i >= 0; i-- {
+		b := &c.blocks[i]
+		if b.kind == blockTool && b.toolID == id && !b.resolved {
+			if b.toolName != name || b.toolArgs != args {
+				b.rev++
+				b.toolName, b.toolArgs = name, args
+			}
+			return true
+		}
+	}
+	return false
+}
+
 // resolveTool marks the tool block matching callID (its toolID) as resolved with
 // its result. Matching is by id only — never by tool name — mirroring the
 // tool_call.id ⇄ tool_result.call_id contract. Returns false if no match (the

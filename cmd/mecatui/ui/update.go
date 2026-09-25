@@ -2213,8 +2213,8 @@ func (m Model) onKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	// Leaving before an owner choice closes only the client watch. The durable ask
 	// remains untouched and no run control is sent.
-	if m.pendingRecovery != nil && !m.pendingRecovery.resolved && key.Matches(msg, m.keys.Close) {
-		(&m).closePendingApprovalWatch()
+	if m.pendingRecovery != nil && !m.pendingRecovery.resolving && !m.pendingRecovery.resolved && key.Matches(msg, m.keys.Close) {
+		(&m).retirePendingApprovalRecovery()
 		return m, tea.Quit
 	}
 
@@ -2641,7 +2641,7 @@ func (m Model) retryPendingModeCmd() tea.Cmd {
 // shows the hint, and schedules the timed disarm. See onKey's doc for the rationale.
 func (m Model) quitNow() (tea.Model, tea.Cmd) {
 	m.admissionSubmission = nil
-	(&m).closePendingApprovalWatch()
+	(&m).retirePendingApprovalRecovery()
 	if m.cancelRun != nil {
 		m.cancelRun()
 	}
@@ -2675,6 +2675,9 @@ func (m Model) onQuitKey() (tea.Model, tea.Cmd) {
 	m.quitArmed = true
 	m.quitArmGen++
 	m.statusMsg = quitHintFor(m.keys.Quit)
+	if m.pendingRecovery != nil && m.pendingRecovery.resolving {
+		m.statusMsg += " — choice submitted; exiting cannot undo it, outcome may be unknown"
+	}
 	m.refreshView()
 	return m, m.quitDisarmCmd(m.quitArmGen)
 }
